@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <title>CRUD Produtos</title>
+</head>
+<body>
+
+  <h1>CRUD de Produtos</h1>
+
+  <!-- Cadastro -->
+  <h2>Cadastrar produto</h2>
+  <input id="name" placeholder="Nome do produto" />
+  <input id="price" type="number" placeholder="Preço em R$" />
+  <button onclick="createProduct()">Cadastrar</button>
+
+  <hr />
+
+  <!-- Busca -->
+  <h2>Buscar produto</h2>
+  <input
+    id="search"
+    placeholder="Nome do produto"
+    oninput="searchProduct()"
+  />
+  <button onclick="searchProduct()">Buscar</button>
+
+  <p id="message" style="color:red;"></p>
+
+  <hr />
+
+  <!-- Lista -->
+  <h2>Lista de produtos</h2>
+  <ul id="list"></ul>
+
+  <script>
+    const API = 'http://localhost:3000/products';
+    let allProducts = [];
+
+    // Carrega produtos do backend
+    async function loadProducts() {
+      const res = await fetch(API);
+      const data = await res.json();
+      allProducts = data;
+      renderProducts(data);
+    }
+
+    // Renderiza lista
+    function renderProducts(products) {
+      const list = document.getElementById('list');
+      const message = document.getElementById('message');
+
+      list.innerHTML = '';
+      message.textContent = '';
+
+      if (!products || products.length === 0) {
+        message.textContent = 'Não foi encontrado';
+        return;
+      }
+
+      products.forEach(p => {
+        const li = document.createElement('li');
+
+        li.innerHTML = `
+          <div id="view-${p.id}">
+            ${p.name} - R$ ${p.price} -
+            <strong>${p.ativo ? 'Ativo' : 'Inativo'}</strong>
+
+            <button onclick="editProduct(${p.id})">Editar</button>
+            <button onclick="showCambio(${p.price})">Câmbio</button>
+          </div>
+
+          <div id="edit-${p.id}" style="display:none">
+            <input id="name-${p.id}" value="${p.name}" />
+            <input id="price-${p.id}" type="number" value="${p.price}" />
+
+            <label>
+              Ativo
+              <input
+                id="ativo-${p.id}"
+                type="checkbox"
+                ${p.ativo ? 'checked' : ''}
+              />
+            </label>
+
+            <button onclick="saveProduct(${p.id})">Salvar</button>
+            <button onclick="cancelEdit(${p.id})">Cancelar</button>
+          </div>
+        `;
+
+        list.appendChild(li);
+      });
+    }
+
+    // Criar produto
+    async function createProduct() {
+      const name = document.getElementById('name').value;
+      const price = document.getElementById('price').value;
+
+      if (!name || !price) {
+        alert('Preencha nome e preço');
+        return;
+      }
+
+      await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, price })
+      });
+
+      document.getElementById('name').value = '';
+      document.getElementById('price').value = '';
+
+      loadProducts();
+    }
+
+    // 🔍 Buscar produto (CORRIGIDO)
+    async function searchProduct() {
+      const term = document
+        .getElementById('search')
+        .value
+        .trim()
+        .toLowerCase();
+
+      // garante que os dados estejam carregados
+      if (allProducts.length === 0) {
+        await loadProducts();
+      }
+
+      if (term === '') {
+        renderProducts(allProducts);
+        return;
+      }
+
+      const filtered = allProducts.filter(p =>
+        p.name && p.name.toLowerCase().includes(term)
+      );
+
+      renderProducts(filtered);
+    }
+
+    // Câmbio Real → Yuan
+    function showCambio(price) {
+      const yuan = (price / 0.77).toFixed(2);
+      alert(`Preço em Yuan: ¥ ${yuan}`);
+    }
+
+    // Editar
+    function editProduct(id) {
+      document.getElementById(`view-${id}`).style.display = 'none';
+      document.getElementById(`edit-${id}`).style.display = 'block';
+    }
+
+    function cancelEdit(id) {
+      document.getElementById(`edit-${id}`).style.display = 'none';
+      document.getElementById(`view-${id}`).style.display = 'block';
+    }
+
+    async function saveProduct(id) {
+      const name = document.getElementById(`name-${id}`).value;
+      const price = document.getElementById(`price-${id}`).value;
+      const ativo = document.getElementById(`ativo-${id}`).checked;
+
+      await fetch(`${API}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, price, ativo })
+      });
+
+      loadProducts();
+    }
+
+    // Inicializa
+    loadProducts();
+  </script>
+
+</body>
+</html>
